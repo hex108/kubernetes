@@ -2484,6 +2484,9 @@ type NodeStatus struct {
 	// Allocatable represents the resources of a node that are available for scheduling.
 	// +optional
 	Allocatable ResourceList `json:"allocatable,omitempty"`
+	// List of local disks
+	// +optional
+	LocalDisks []LocalDisk `json:"localDisks,omitempty"`
 	// NodePhase is the current lifecycle phase of the node.
 	// +optional
 	Phase NodePhase `json:"phase,omitempty"`
@@ -2508,6 +2511,17 @@ type NodeStatus struct {
 	// List of volumes that are attached to the node.
 	// +optional
 	VolumesAttached []AttachedVolume `json:"volumesAttached,omitempty"`
+}
+
+type LocalDisk struct {
+	// Local directory
+	LocalDir string `json:"localDir,omitempty"`
+	// Total capacity, unit is Gi
+	Capacity uint32 `json:"capacity,omitempty"`
+	// Allocatable capacity represents the disk capacity that are available for scheduling, Unit is Gi
+	Allocatable uint32 `json:"allocatable,omitempty"`
+	// TODO: Add labels for local disk, e.g. kind=SSD. They will be helpful for scheduling.
+	// Labels map[string]string
 }
 
 type UniqueVolumeName string

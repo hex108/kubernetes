@@ -23,6 +23,7 @@ import (
 	goRuntime "runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -514,6 +515,24 @@ func (kl *Kubelet) setNodeStatusMachineInfo(node *api.Node) {
 	}
 }
 
+// Set local disks info for the node.
+func (kl *Kubelet) setNodeLocalDisks(node *api.Node) {
+	reservedDiskCapacity := kl.kubeletConfiguration.ReservedLocalDiskCapacity
+	for _, dir := range kl.kubeletConfiguration.LocalDisks {
+		stat := syscall.Statfs_t{}
+		if err := syscall.Statfs(dir, &stat); err != nil {
+			glog.Errorf("Error getting %s's status: %v", dir, err)
+			continue
+		}
+		var disk api.LocalDisk
+		disk.LocalDir = dir
+		disk.Capacity = uint32(stat.Blocks * uint64(stat.Bsize) / (1024 * 1024 * 1024))
+		disk.Allocatable = disk.Capacity - reservedDiskCapacity
+		glog.Infof("Add %+v to node's local disks", disk)
+		node.Status.LocalDisks = append(node.Status.LocalDisks, disk)
+	}
+}
+
 // Set versioninfo for the node.
 func (kl *Kubelet) setNodeStatusVersionInfo(node *api.Node) {
 	verinfo, err := kl.cadvisor.VersionInfo()
@@ -579,6 +598,7 @@ func (kl *Kubelet) setNodeStatusGoRuntime(node *api.Node) {
 // Set status for the node.
 func (kl *Kubelet) setNodeStatusInfo(node *api.Node) {
 	kl.setNodeStatusMachineInfo(node)
+	kl.setNodeLocalDisks(node)
 	kl.setNodeStatusVersionInfo(node)
 	kl.setNodeStatusDaemonEndpoints(node)
 	kl.setNodeStatusImages(node)
