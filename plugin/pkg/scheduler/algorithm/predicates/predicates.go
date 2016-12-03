@@ -603,6 +603,35 @@ func podMatchesNodeLabels(pod *api.Pod, node *api.Node) bool {
 	return nodeAffinityMatches
 }
 
+func PodFitsLocalDisk(pod *api.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
+	for _, volume := range pod.Spec.Volumes{
+		localDisk := volume.LocalDisk
+		if localDisk == nil {
+			continue
+		}
+		glog.Infof("Found local disk request %+v for pod(%s)", localDisk, pod.Name)
+		// FIXME: if there are multiple local disk request, there will be an error because
+		// we does not subtract previous local disk request from node.
+		if !nodeMeetsLocalDisk(nodeInfo, localDisk) {
+			return false, []algorithm.PredicateFailureReason{ErrNoMatchedLocalDisk}, nil
+		}
+	}
+
+	return true, nil, nil
+}
+
+func nodeMeetsLocalDisk(nodeInfo *schedulercache.NodeInfo, localDisk *api.LocalDiskSource) bool {
+	size := localDisk.DiskSize
+	for _, diskResource := range nodeInfo.AllocatableLocalDiskResource() {
+		if diskResource.Allocatable >= diskResource.Requested + size {
+			glog.Infof("Found a match disk %+v for request %+v", diskResource, localDisk)
+			return true
+		}
+	}
+
+	return false
+}
+
 func PodSelectorMatches(pod *api.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	node := nodeInfo.Node()
 	if node == nil {
@@ -824,6 +853,14 @@ func haveSame(a1, a2 []string) bool {
 func GeneralPredicates(pod *api.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	var predicateFails []algorithm.PredicateFailureReason
 	fit, reasons, err := PodFitsResources(pod, meta, nodeInfo)
+	if err != nil {
+		return false, predicateFails, err
+	}
+	if !fit {
+		predicateFails = append(predicateFails, reasons...)
+	}
+
+	fit, reasons, err = PodFitsLocalDisk(pod, meta, nodeInfo)
 	if err != nil {
 		return false, predicateFails, err
 	}

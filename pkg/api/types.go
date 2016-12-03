@@ -291,6 +291,9 @@ type VolumeSource struct {
 	AzureDisk *AzureDiskVolumeSource `json:"azureDisk,omitempty"`
 	// PhotonPersistentDisk represents a Photon Controller persistent disk attached and mounted on kubelets host machine
 	PhotonPersistentDisk *PhotonPersistentDiskVolumeSource `json:"photonPersistentDisk,omitempty"`
+	// LocalDisk represents a local disk request for a pod.
+	// +optional
+	LocalDisk *LocalDiskSource `json:"localDisk,omitempty"`
 }
 
 // Similar to VolumeSource but meant for the administrator who creates PVs.
@@ -568,6 +571,17 @@ const (
 	// ProtocolUDP is the UDP protocol.
 	ProtocolUDP Protocol = "UDP"
 )
+
+// Represents local disk claim for a pod
+type LocalDiskSource struct {
+	// Requested local disk size, the unit is Gi
+	DiskSize uint32 `json:"diskSize"`
+	// LocalPath represents the local disk path that pod will use. It will be
+	// backfilled by scheduler when scheduler find a fit local path on a
+	// kubelet node. If user specifies it, it might not be satisfied.
+	LocalPath string `json:"localPath,omitempty"`
+	// TODO: Add labels to select local disk, e.g. kind=SSD.
+}
 
 // Represents a Persistent Disk resource in Google Compute Engine.
 //

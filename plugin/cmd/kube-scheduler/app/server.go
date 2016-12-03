@@ -121,6 +121,12 @@ func Run(s *options.SchedulerServer) error {
 		glog.Fatalf("Failed to create scheduler configuration: %v", err)
 	}
 
+	kubeClient, err := clientset.NewForConfig(restclient.AddUserAgent(kubeconfig, "scheduler"))
+	if err != nil {
+		glog.Fatalf("Failed to init a kubeClient: %v", err)
+	}
+	config.KubeClient = kubeClient
+
 	eventBroadcaster := record.NewBroadcaster()
 	config.Recorder = eventBroadcaster.NewRecorder(api.EventSource{Component: s.SchedulerName})
 	eventBroadcaster.StartLogging(glog.Infof)
