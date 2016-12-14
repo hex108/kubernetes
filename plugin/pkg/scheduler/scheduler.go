@@ -152,7 +152,6 @@ func (s *Scheduler) scheduleOne() {
 			} else {
 				glog.Infof("===After update : %+v", *p)
 			}
-			*/
 		}
 
 		b := &v1.Binding{

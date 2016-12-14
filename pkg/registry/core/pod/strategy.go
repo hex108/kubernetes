@@ -146,8 +146,11 @@ var StatusStrategy = podStatusStrategy{Strategy}
 
 func (podStatusStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
 	newPod := obj.(*api.Pod)
+	// TODO: Only permit modify LocalDisk volume, or use another way to implement it.
+	volumes := newPod.Spec.Volumes
 	oldPod := old.(*api.Pod)
 	newPod.Spec = oldPod.Spec
+	newPod.Spec.Volumes = volumes
 	newPod.DeletionTimestamp = nil
 }
 

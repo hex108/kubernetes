@@ -2375,6 +2375,15 @@ func ValidatePodUpdate(newPod, oldPod *api.Pod) field.ErrorList {
 		activeDeadlineSeconds := *oldPod.Spec.ActiveDeadlineSeconds
 		mungedPod.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
 	}
+	// munge spec.Volumes
+	var newVolumes []api.Volume
+	for ix, volume := range mungedPod.Spec.Volumes {
+		if volume.LocalDisk != nil {
+			volume.LocalDisk = oldPod.Spec.Volumes[ix].LocalDisk
+		}
+		newVolumes = append(newVolumes, volume)
+	}
+	mungedPod.Spec.Volumes = newVolumes
 	if !api.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) {
 		//TODO: Pinpoint the specific field that causes the invalid error after we have strategic merge diff
 		allErrs = append(allErrs, field.Forbidden(specPath, "pod updates may not change fields other than `containers[*].image` or `spec.activeDeadlineSeconds`"))
@@ -2393,8 +2402,11 @@ func ValidatePodStatusUpdate(newPod, oldPod *api.Pod) field.ErrorList {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("status", "nodeName"), "may not be changed directly"))
 	}
 
+	// TODO: Only permit modify LocalDisk volume, or use another way to implement it.
+	volumes := newPod.Spec.Volumes
 	// For status update we ignore changes to pod spec.
 	newPod.Spec = oldPod.Spec
+	newPod.Spec.Volumes = volumes
 
 	return allErrs
 }

@@ -785,3 +785,107 @@ func TestEtcdUpdateStatus(t *testing.T) {
 		t.Errorf("objects differ: %v", diff.ObjectDiff(podOut, expected))
 	}
 }
+
+func TestEtcdUpdateSpec(t *testing.T) {
+	storage, _, statusStorage, server := newStorage(t)
+	defer server.Terminate(t)
+	defer storage.Store.DestroyFunc()
+	ctx := api.NewDefaultContext()
+
+	key, _ := storage.KeyFunc(ctx, "foo")
+	podStart := api.Pod{
+		ObjectMeta: api.ObjectMeta{
+			Name:      "foo",
+			Namespace: api.NamespaceDefault,
+		},
+		Spec: api.PodSpec{
+			NodeName: "machine",
+			Containers: []api.Container{
+				{
+					Image:           "foo:v1",
+					SecurityContext: securitycontext.ValidInternalSecurityContextWithContainerDefaults(),
+				},
+			},
+			Volumes: []api.Volume{
+				{
+					Name: "test-local-disk",
+					VolumeSource: api.VolumeSource{
+						LocalDisk: &api.LocalDiskSource{
+							DiskSize: 5,
+						},
+					},
+				},
+			},
+			SecurityContext: &api.PodSecurityContext{},
+		},
+	}
+	err := storage.Storage.Create(ctx, key, &podStart, nil, 0)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	podIn := api.Pod{
+		ObjectMeta: api.ObjectMeta{
+			Name: "foo",
+			Labels: map[string]string{
+				"foo": "bar",
+			},
+		},
+		Spec: api.PodSpec{
+			NodeName: "machine",
+			Containers: []api.Container{
+				{
+					Image:                  "foo:v2",
+					ImagePullPolicy:        api.PullIfNotPresent,
+					TerminationMessagePath: api.TerminationMessagePathDefault,
+				},
+			},
+			Volumes: []api.Volume{
+				{
+					Name: "test-local-disk",
+					VolumeSource: api.VolumeSource{
+						LocalDisk: &api.LocalDiskSource{
+							DiskSize: 5,
+							LocalPath: "/testjungong/testtest",
+						},
+					},
+				},
+			},
+			SecurityContext: &api.PodSecurityContext{},
+		},
+		Status: api.PodStatus{
+			Phase:   api.PodRunning,
+			PodIP:   "127.0.0.1",
+			Message: "is now scheduled",
+		},
+	}
+
+	expected := podStart
+	expected.ResourceVersion = "2"
+	grace := int64(30)
+	expected.Spec.TerminationGracePeriodSeconds = &grace
+	expected.Spec.RestartPolicy = api.RestartPolicyAlways
+	expected.Spec.DNSPolicy = api.DNSClusterFirst
+	expected.Spec.Containers[0].ImagePullPolicy = api.PullIfNotPresent
+	expected.Spec.Containers[0].TerminationMessagePath = api.TerminationMessagePathDefault
+	expected.Spec.Volumes[0].LocalDisk.DiskSize = 5
+	expected.Spec.Volumes[0].LocalDisk.LocalPath = "/testjungong/testtest"
+	expected.Labels = podIn.Labels
+	expected.Status = podIn.Status
+
+	_, _, err = statusStorage.Update(ctx, podIn.Name, rest.DefaultUpdatedObjectInfo(&podIn, api.Scheme))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	obj, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	podOut := obj.(*api.Pod)
+	// Check to verify the Label, and Status updates match from change above.  Those are the fields changed.
+	if !api.Semantic.DeepEqual(podOut.Spec, expected.Spec) ||
+		!api.Semantic.DeepEqual(podOut.Labels, expected.Labels) ||
+		!api.Semantic.DeepEqual(podOut.Status, expected.Status) {
+		t.Errorf("objects differ: %v", diff.ObjectDiff(podOut, expected))
+	}
+}
