@@ -45,6 +45,7 @@ import (
 	"k8s.io/kubernetes/pkg/volume/glusterfs"
 	"k8s.io/kubernetes/pkg/volume/host_path"
 	"k8s.io/kubernetes/pkg/volume/iscsi"
+	"k8s.io/kubernetes/pkg/volume/local_disk"
 	"k8s.io/kubernetes/pkg/volume/nfs"
 	"k8s.io/kubernetes/pkg/volume/photon_pd"
 	"k8s.io/kubernetes/pkg/volume/quobyte"
@@ -69,6 +70,7 @@ func ProbeVolumePlugins(pluginDir string) []volume.VolumePlugin {
 	// If/when it does, see kube-controller-manager/app/plugins.go for example of using volume.VolumeConfig
 	allPlugins = append(allPlugins, aws_ebs.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, empty_dir.ProbeVolumePlugins()...)
+	allPlugins = append(allPlugins, local_disk.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, gce_pd.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, git_repo.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, host_path.ProbeVolumePlugins(volume.VolumeConfig{})...)
