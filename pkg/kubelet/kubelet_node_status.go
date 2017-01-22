@@ -553,6 +553,11 @@ func (kl *Kubelet) setNodeStatusMachineInfo(node *v1.Node) {
 
 // Set local disks info for the node.
 func (kl *Kubelet) setNodeLocalDisks(node *v1.Node) {
+	node.Status.LocalDisks = kl.getNodeLocalDisks()
+}
+
+// Get local disks info for the node.
+func (kl *Kubelet) getNodeLocalDisks() []v1.LocalDisk {
 	reservedDiskCapacity := kl.kubeletConfiguration.ReservedLocalDiskCapacity
 	var localDisks []v1.LocalDisk
 	for _, dir := range kl.kubeletConfiguration.LocalDisks {
@@ -568,7 +573,7 @@ func (kl *Kubelet) setNodeLocalDisks(node *v1.Node) {
 		glog.Infof("Add %+v to node's local disks", disk)
 		localDisks = append(localDisks, disk)
 	}
-	node.Status.LocalDisks = localDisks
+	return localDisks
 }
 
 // Set versioninfo for the node.

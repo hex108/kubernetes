@@ -93,6 +93,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm/predicates"
+	"k8s.io/kubernetes/pkg/kubelet/localdiskmanager"
 )
 
 const (
@@ -171,7 +172,7 @@ type KubeletBootstrap interface {
 	StartGarbageCollection()
 	ListenAndServe(address net.IP, port uint, tlsOptions *server.TLSOptions, auth server.AuthInterface, enableDebuggingHandlers bool)
 	ListenAndServeReadOnly(address net.IP, port uint)
-	Run(<-chan kubetypes.PodUpdate)
+	Run(chan kubetypes.PodUpdate)
 	RunOnce(<-chan kubetypes.PodUpdate) ([]RunPodResult, error)
 }
 
@@ -739,6 +740,9 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 		kubeDeps.Recorder,
 		kubeCfg.ExperimentalCheckNodeCapabilitiesBeforeMount)
 
+	// setup localDiskManager
+	klet.localDiskManager = localdiskmanager.NewLocalDiskManager(klet.podManager)
+
 	runtimeCache, err := kubecontainer.NewRuntimeCache(klet.containerRuntime)
 	if err != nil {
 		return nil, err
@@ -924,6 +928,10 @@ type Kubelet struct {
 	// volumes need to be attached/mounted/unmounted/detached based on the pods
 	// scheduled on this node and makes it so.
 	volumeManager volumemanager.VolumeManager
+
+	// Local disk manager, it monitors configured local disks, and kill pod that
+	// its used disk spaces exceeds its request local disk spaces
+	localDiskManager localdiskmanager.LocalDiskManager
 
 	// Cloud provider interface.
 	cloud                   cloudprovider.Interface
@@ -1216,7 +1224,7 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 }
 
 // Run starts the kubelet reacting to config updates
-func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
+func (kl *Kubelet) Run(updates chan kubetypes.PodUpdate) {
 	if kl.logServer == nil {
 		kl.logServer = http.StripPrefix("/logs/", http.FileServer(http.Dir("/var/log/")))
 	}
@@ -1231,6 +1239,9 @@ func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 
 	// Start volume manager
 	go kl.volumeManager.Run(kl.sourcesReady, wait.NeverStop)
+
+	// start local disk manager
+	go kl.localDiskManager.Run(kl.getNodeLocalDisks(), updates, kl.statusManager, wait.NeverStop)
 
 	if kl.kubeClient != nil {
 		// Start syncing node status immediately, this may set up things the runtime needs to run.

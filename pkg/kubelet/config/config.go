@@ -102,7 +102,7 @@ func (c *PodConfig) SeenAllSources(seenSources sets.String) bool {
 }
 
 // Updates returns a channel of updates to the configuration, properly denormalized.
-func (c *PodConfig) Updates() <-chan kubetypes.PodUpdate {
+func (c *PodConfig) Updates() chan kubetypes.PodUpdate {
 	return c.updates
 }
 
