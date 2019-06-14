@@ -606,6 +606,10 @@ func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubec
 		klog.V(3).Infof("Container %q exited normally", containerID.String())
 	}
 
+	if err := m.internalLifecycle.PostStopContainer(containerID.ID); err != nil {
+		return err
+	}
+
 	m.containerRefManager.ClearRef(containerID)
 
 	return err

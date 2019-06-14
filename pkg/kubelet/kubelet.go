@@ -2245,6 +2245,9 @@ func (kl *Kubelet) ListenAndServePodResources() {
 
 // Delete the eligible dead container instances in a pod. Depending on the configuration, the latest dead containers may be kept around.
 func (kl *Kubelet) cleanUpContainersInPod(podID types.UID, exitedContainerID string) {
+	// Should pre stop container
+	kuberuntime.PreStopContainer(kl.containerRuntime, exitedContainerID)
+
 	if podStatus, err := kl.podCache.Get(podID); err == nil {
 		removeAll := false
 		if syncedPod, ok := kl.podManager.GetPodByUID(podID); ok {

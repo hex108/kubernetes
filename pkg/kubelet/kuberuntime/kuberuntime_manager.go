@@ -992,3 +992,8 @@ func (m *kubeGenericRuntimeManager) UpdatePodCIDR(podCIDR string) error {
 			},
 		})
 }
+
+func PreStopContainer(m kubecontainer.Runtime, cid string) {
+	k := m.(*kubeGenericRuntimeManager)
+	k.internalLifecycle.PreStopContainer(cid)
+}
