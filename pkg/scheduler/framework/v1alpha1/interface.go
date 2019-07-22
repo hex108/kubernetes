@@ -25,6 +25,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
+	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
 
 // Code is the Status code/type which is returned from plugins.
@@ -244,6 +245,12 @@ type BindPlugin interface {
 // Configured plugins are called at specified points in a scheduling context.
 type Framework interface {
 	FrameworkHandle
+	// NodeInfoSnapshot return the latest NodeInfo snapshot. The snapshot
+	// is taken at the beginning of a scheduling cycle and remains unchanged until
+	// a pod finishes "Reserve" point. There is no guarantee that the information
+	// remains unchanged in the binding phase of scheduling.
+	NodeInfoSnapshot() *internalcache.NodeInfoSnapshot
+
 	// QueueSortFunc returns the function to sort pods in scheduling queue
 	QueueSortFunc() LessFunc
 
@@ -303,11 +310,11 @@ type Framework interface {
 // passed to the plugin factories at the time of plugin initialization. Plugins
 // must store and use this handle to call framework functions.
 type FrameworkHandle interface {
-	// NodeInfoSnapshot return the latest NodeInfo snapshot. The snapshot
-	// is taken at the beginning of a scheduling cycle and remains unchanged until
-	// a pod finishes "Reserve" point. There is no guarantee that the information
-	// remains unchanged in the binding phase of scheduling.
-	NodeInfoSnapshot() *internalcache.NodeInfoSnapshot
+	// IterateOverNodes acquires a read lock and iterates over the Nodes map.
+	IterateOverNodes(callback func(*nodeinfo.NodeInfo))
+
+	// GetNodeInfo returns a NodeInfo given its name.
+	GetNodeInfo(nodeName string) *nodeinfo.NodeInfo
 
 	// IterateOverWaitingPods acquires a read lock and iterates over the WaitingPods map.
 	IterateOverWaitingPods(callback func(WaitingPod))

@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/internal/cache"
+	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
 )
 
@@ -481,6 +482,22 @@ func (f *framework) RunPermitPlugins(
 // unchanged after "Reserve".
 func (f *framework) NodeInfoSnapshot() *cache.NodeInfoSnapshot {
 	return f.nodeInfoSnapshot
+}
+
+// IterateOverNodes acquires a read lock and iterates over the Nodes map.
+func (f *framework) IterateOverNodes(callback func(*nodeinfo.NodeInfo)) {
+	f.nodeInfoSnapshot.RLock()
+	f.nodeInfoSnapshot.RUnlock()
+	for _, v := range f.nodeInfoSnapshot.NodeInfoMap {
+		callback(v)
+	}
+}
+
+// GetNodeInfo returns a NodeInfo given its name.
+func (f *framework) GetNodeInfo(nodeName string) *nodeinfo.NodeInfo {
+	f.nodeInfoSnapshot.RLock()
+	defer f.nodeInfoSnapshot.RUnlock()
+	return f.nodeInfoSnapshot.NodeInfoMap[nodeName]
 }
 
 // IterateOverWaitingPods acquires a read lock and iterates over the WaitingPods map.

@@ -228,7 +228,9 @@ func (cache *schedulerCache) UpdateNodeInfoSnapshot(nodeSnapshot *NodeInfoSnapsh
 			node.info.TransientInfo.ResetTransientSchedulerInfo()
 		}
 		if np := node.info.Node(); np != nil {
+			nodeSnapshot.Lock()
 			nodeSnapshot.NodeInfoMap[np.Name] = node.info.Clone()
+			nodeSnapshot.Unlock()
 		}
 	}
 	// Update the snapshot generation with the latest NodeInfo generation.
@@ -236,6 +238,8 @@ func (cache *schedulerCache) UpdateNodeInfoSnapshot(nodeSnapshot *NodeInfoSnapsh
 		nodeSnapshot.Generation = cache.headNode.info.GetGeneration()
 	}
 
+	nodeSnapshot.Lock()
+	defer nodeSnapshot.Unlock()
 	if len(nodeSnapshot.NodeInfoMap) > len(cache.nodes) {
 		for name := range nodeSnapshot.NodeInfoMap {
 			if _, ok := cache.nodes[name]; !ok {

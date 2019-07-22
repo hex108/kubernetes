@@ -32,6 +32,7 @@ import (
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
+	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	"k8s.io/kubernetes/pkg/scheduler/util"
 )
 
@@ -196,6 +197,12 @@ func (*fakeFramework) RunReservePlugins(pc *framework.PluginContext, pod *v1.Pod
 func (*fakeFramework) RunUnreservePlugins(pc *framework.PluginContext, pod *v1.Pod, nodeName string) {}
 
 func (*fakeFramework) RunPermitPlugins(pc *framework.PluginContext, pod *v1.Pod, nodeName string) *framework.Status {
+	return nil
+}
+
+func (*fakeFramework) IterateOverNodes(callback func(*nodeinfo.NodeInfo)) {}
+
+func (*fakeFramework) GetNodeInfo(nodeName string) *nodeinfo.NodeInfo {
 	return nil
 }
 

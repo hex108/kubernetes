@@ -17,7 +17,9 @@ limitations under the License.
 package cache
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"sync"
+
+	"k8s.io/api/core/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
@@ -136,6 +138,7 @@ type Snapshot struct {
 // snapshot at the beginning of each scheduling cycle and uses it for its
 // operations in that cycle.
 type NodeInfoSnapshot struct {
+	sync.RWMutex
 	NodeInfoMap map[string]*schedulernodeinfo.NodeInfo
 	Generation  int64
 }
