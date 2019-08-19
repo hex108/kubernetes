@@ -335,6 +335,13 @@ func (p *PriorityQueue) flushBackoffQCompleted() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
+	needBroadcast := false
+	defer func() {
+		if needBroadcast {
+			p.cond.Broadcast()
+		}
+	}()
+
 	for {
 		rawPodInfo := p.podBackoffQ.Peek()
 		if rawPodInfo == nil {
@@ -346,7 +353,7 @@ func (p *PriorityQueue) flushBackoffQCompleted() {
 			klog.Errorf("Unable to find backoff value for pod %v in backoffQ", nsNameForPod(pod))
 			p.podBackoffQ.Pop()
 			p.activeQ.Add(rawPodInfo)
-			defer p.cond.Broadcast()
+			needBroadcast = true
 			continue
 		}
 
@@ -359,7 +366,7 @@ func (p *PriorityQueue) flushBackoffQCompleted() {
 			return
 		}
 		p.activeQ.Add(rawPodInfo)
-		defer p.cond.Broadcast()
+		needBroadcast = true
 	}
 }
 
