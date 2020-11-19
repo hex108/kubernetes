@@ -185,6 +185,9 @@ func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesRe
 }
 
 func (m *manager) AddContainer(p *v1.Pod, c *v1.Container, containerID string) error {
+	// Garbage collect any stranded resources before allocating CPUs.
+	m.removeStaleState()
+
 	m.Lock()
 	err := m.policy.AddContainer(m.state, p, c, containerID)
 	if err != nil {
