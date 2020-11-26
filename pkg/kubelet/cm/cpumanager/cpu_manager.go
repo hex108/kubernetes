@@ -103,7 +103,12 @@ type manager struct {
 	// sourcesReady provides the readiness of kubelet configuration sources such as apiserver update readiness.
 	// We use it to determine when we can purge inactive pods from checkpointed state.
 	sourcesReady config.SourcesReady
+
+	// removedContainerIds records latest recently removed containers
+	removedContainerIds []string
 }
+
+const maxRemovedContainerIdNum = 100
 
 var _ Manager = &manager{}
 
@@ -216,6 +221,8 @@ func (m *manager) AddContainer(p *v1.Pod, c *v1.Container, containerID string) e
 }
 
 func (m *manager) RemoveContainer(containerID string) error {
+	m.recordRemovedContainerId(containerID)
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -225,6 +232,29 @@ func (m *manager) RemoveContainer(containerID string) error {
 		return err
 	}
 	return nil
+}
+
+func (m *manager) recordRemovedContainerId(containerID string) {
+	m.Lock()
+	defer m.Unlock()
+
+	if len(m.removedContainerIds) < maxRemovedContainerIdNum {
+		m.removedContainerIds = append(m.removedContainerIds, containerID)
+	} else {
+		m.removedContainerIds = append(m.removedContainerIds[1:], containerID)
+	}
+}
+
+func (m *manager) isRemovedContainerId(containerID string) bool {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, id := range m.removedContainerIds {
+		if containerID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *manager) State() state.Reader {
@@ -330,6 +360,10 @@ func (m *manager) reconcileState() (success []reconciledContainer, failure []rec
 			// - container has been removed from state by RemoveContainer call (DeletionTimestamp is set)
 			if _, ok := m.state.GetCPUSet(containerID); !ok {
 				if status.Phase == v1.PodRunning && pod.DeletionTimestamp == nil {
+					if m.isRemovedContainerId(containerID) {
+						klog.V(4).Infof("[cpumanager] reconcileState: container is not present in state - skip it is recently removed(pod: %s, container: %s, container id: %s)", pod.Name, container.Name, containerID)
+						continue
+					}
 					klog.V(4).Infof("[cpumanager] reconcileState: container is not present in state - trying to add (pod: %s, container: %s, container id: %s)", pod.Name, container.Name, containerID)
 					err := m.AddContainer(pod, &container, containerID)
 					if err != nil {
